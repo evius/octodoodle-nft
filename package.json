@@ -1,0 +1,20 @@
+{
+  "name": "cryptopi-crew-nft",
+  "version": "1.0.0",
+  "description": "Cryptopi Crew ERC721 Smart Contracts",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "truffle build"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.3.2",
+    "ganache-cli": "^6.12.2",
+    "truffle": "^5.4.11"
+  }
+}
