@@ -23,12 +23,12 @@ contract CreatureFactory is FactoryERC721, Ownable {
     /*
      * Three different options for minting Cyptopi (1, 5, 15 20).
      */
-    uint256 NUM_OPTIONS = 5;
-    uint256 SINGLE_CRYPTOPI_OPTION = 0;
-    uint256 FIVE_CRYPTOPI_OPTION = 1;
-    uint256 TEN_CRYPTOPI_OPTION = 2;
-    uint256 FIFTEEN_CRYPTOPI_OPTION = 4;
-    uint256 TWENTY_CRYPTOPI_OPTION = 5;
+    uint8 constant NUM_OPTIONS = 5;
+    uint8 constant SINGLE_CRYPTOPI_OPTION = 0;
+    uint8 constant FIVE_CRYPTOPI_OPTION = 1;
+    uint8 constant TEN_CRYPTOPI_OPTION = 2;
+    uint8 constant FIFTEEN_CRYPTOPI_OPTION = 4;
+    uint8 constant TWENTY_CRYPTOPI_OPTION = 5;
 
     constructor(address _proxyRegistryAddress, address _nftAddress) {
         proxyRegistryAddress = _proxyRegistryAddress;
@@ -65,7 +65,7 @@ contract CreatureFactory is FactoryERC721, Ownable {
         }
     }
 
-    function getTokensToMint(unint256 _optionId) private returns (uint256) {
+    function getTokensToMint(uint256 _optionId) private pure returns (uint256) {
         if (_optionId == SINGLE_CRYPTOPI_OPTION) {
             return 1;
         } else if (_optionId == FIVE_CRYPTOPI_OPTION) {
@@ -86,12 +86,11 @@ contract CreatureFactory is FactoryERC721, Ownable {
         ProxyRegistry proxyRegistry = ProxyRegistry(proxyRegistryAddress);
         assert(
             address(proxyRegistry.proxies(owner())) == _msgSender() ||
-                owner() == _msgSender() ||
-                _msgSender() == lootBoxNftAddress
+                owner() == _msgSender()
         );
         require(canMint(_optionId));
 
-        Crypotpi cryptopi = Crypotpi(nftAddress);
+        Cryptopi cryptopi = Cryptopi(nftAddress);
 
         uint256 tokensToMint = getTokensToMint(_optionId);
 
@@ -115,7 +114,7 @@ contract CreatureFactory is FactoryERC721, Ownable {
 
         uint256 numItemsAllocated = getTokensToMint(_optionId);
         
-        return cryptopi < (cryptopiMaxSupply - numItemsAllocated);
+        return cryptopiSupply < (cryptopiMaxSupply - numItemsAllocated);
     }
 
     function tokenURI(uint256 _optionId) override external view returns (string memory) {
