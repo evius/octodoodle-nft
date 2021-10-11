@@ -9,7 +9,7 @@ contract Cryptopi is ERC721Tradable {
     /*
     Enforce the existence Cryptopi.
      */
-    uint256 public MAX_SUPPLY;
+    uint256 public maxSupply;
 
     /*
     Reserved for owners, giveaways, airdrops, etc.
@@ -21,7 +21,7 @@ contract Cryptopi is ERC721Tradable {
 
     uint256 public salePrice;
     uint256 public preSalePrice;
-    enum SaleState { Pending, PreSaleOpen, Open, Closed}
+    enum SaleState { Pending, PreSaleOpen, Open, Paused, Closed}
     SaleState public saleState;
 
     constructor(
@@ -36,7 +36,7 @@ contract Cryptopi is ERC721Tradable {
     )
         ERC721Tradable(_name, _symbol, _proxyRegistryAddress)
     {
-        MAX_SUPPLY = _maxSupply;
+        maxSupply = _maxSupply;
         baseTokenMetadataURI = _baseTokenUri;
         contractMetatdataURI = _contractUri;
 
@@ -51,10 +51,6 @@ contract Cryptopi is ERC721Tradable {
 
     function contractURI() public view returns (string memory) {
         return contractMetatdataURI;
-    }
-
-    function maxSupply() public view returns (uint256) {
-        return MAX_SUPPLY;
     }
 
     function reservedSupply() public pure returns (uint8) {
@@ -75,5 +71,9 @@ contract Cryptopi is ERC721Tradable {
 
     function setBaseTokenURI(string memory _baseTokenURI) external onlyOwner {
         baseTokenMetadataURI = _baseTokenURI;
+    }
+
+    function setSaleState(SaleState state) external onlyOwner {
+
     }
 }

@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "./IFactoryERC721.sol";
 import "./Cryptopi.sol";
 
-contract CreatureFactory is FactoryERC721, Ownable {
+contract CryptopiFactory is FactoryERC721, Ownable {
     using Strings for string;
 
     event Transfer(
