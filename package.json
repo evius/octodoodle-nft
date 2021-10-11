@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npx jest ./test --forceExit",
+    "test": "truffle compile && mocha --exit --recursive",
     "build": "truffle build"
   },
   "author": "",
@@ -16,6 +16,7 @@
     "@openzeppelin/contracts": "^4.3.2",
     "@openzeppelin/test-environment": "^0.1.9",
     "@openzeppelin/test-helpers": "^0.5.15",
+    "chai-as-promised": "^7.1.1",
     "ganache-cli": "^6.12.2",
     "jest": "^27.2.5",
     "truffle": "^5.4.11"

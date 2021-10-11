@@ -74,6 +74,6 @@ contract Cryptopi is ERC721Tradable {
     }
 
     function setSaleState(SaleState state) external onlyOwner {
-
+        saleState = state;
     }
 }
