@@ -42,66 +42,102 @@ describe('Cryptopi', () => {
   });
 
   describe('setSaleState', () => {
-    it('sets the sale state to PreSaleOpen from Pending', async () => {
+    it('sets the sale state to Pending', async () => {
+      // Default state is pending so set to open first
+      await this.cryptopi.setSaleState(SaleState.Open);
+      await this.cryptopi.setSaleState(SaleState.Pending);
+      expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
+        SaleState.Pending
+      );
+    });
+
+    it('sets the sale state to PreSaleOpen', async () => {
       await this.cryptopi.setSaleState(SaleState.PreSaleOpen);
       expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
         SaleState.PreSaleOpen
       );
     });
 
-    it('sets the sale state to Open from Pending', async () => {
+    it('sets the sale state to Open', async () => {
       await this.cryptopi.setSaleState(SaleState.Open);
       expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
         SaleState.Open
       );
     });
 
-    it('sets the sale state to Paused from PreSaleOpen', async () => {
-      await this.cryptopi.setSaleState(SaleState.PreSaleOpen);
+    it('sets the sale state to Paused', async () => {
       await this.cryptopi.setSaleState(SaleState.Paused);
       expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
         SaleState.Paused
       );
     });
 
-    it('sets the sale state to Paused from Open', async () => {
-      await this.cryptopi.setSaleState(SaleState.Open);
-      await this.cryptopi.setSaleState(SaleState.Paused);
-      expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
-        SaleState.Paused
-      );
-    });
-
-    it('sets the sale state to Open from PreSaleOpen', async () => {
-      await this.cryptopi.setSaleState(SaleState.PreSaleOpen);
-      await this.cryptopi.setSaleState(SaleState.Open);
-      expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
-        SaleState.Open
-      );
-    });
-
-    it('sets the sale state to Closed from SaleOpen', async () => {
-      await this.cryptopi.setSaleState(SaleState.Open);
+    it('sets the sale state to Closed', async () => {
       await this.cryptopi.setSaleState(SaleState.Closed);
       expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
         SaleState.Closed
       );
     });
 
-    it('does not set the sale state to PreSaleOpen from SaleOpen', async () => {});
+    it('fails gracefully when state is unknown', async () => {
+      // Default state is pending so set to open first
+      expect(() => await this.cryptopi.setSaleState('10'));
+      await this.cryptopi.setSaleState('-1');
 
-    it('does not set the sale state to Pending from SaleOpen', async () => {});
+      expect(await this.cryptopi.saleState()).to.be.bignumber.equal(
+        SaleState.Pending
+      );
+    });
+  });
 
-    it('does not set the sale state to Pending from PreSaleOpen', async () => {});
+  describe('setContractURI', () => {
+    it('updates the contract URI', async () => {
+      const newUri = 'ipfs://new-contract-uri/contract';
+      await this.cryptopi.setContractURI(newUri);
+      expect(await this.cryptopi.contractURI()).to.equal(newUri);
+    });
+  });
 
-    it('does not set the sale state to Paused from Closed', async () => {});
+  describe('setBaseTokenURI', () => {
+    it('updates the base token URI', async () => {
+      const newUri = 'ipfs://new-token-uri';
+      await this.cryptopi.setBaseTokenURI(newUri);
+      expect(await this.cryptopi.baseTokenURI()).to.equal(newUri);
+    });
+  });
 
-    it('does not set the sale state to PreSaleOpen from Closed', async () => {});
+  describe('mintFromPublic', () => {
+    it('can be called by public', () => {});
 
-    it('does not set the sale state to SaleOpen from Closed', async () => {});
+    it('mints when sale state is PreSaleOpen or Open', () => {});
 
-    it('does not set the sale state to Pending from Closed', async () => {});
+    it('does not mint when sale state is Pending, Paused or Closed', () => {});
 
-    it('updates to Closed when sold out', async () => {});
+    it('sets the sale state to closed when tokenSupply reaches maxSupply - reserved', () => {});
+
+    it('requires the pre-sale price when sale state is PreSaleOpen', () => {});
+
+    it('requires the sale price when sale state is Open', () => {});
+
+    it('calculates the pre-sale price correctly for quantity', () => {});
+
+    it('calculates the sale price correctly for quantity', () => {});
+  });
+
+  describe('mintFromFactory', () => {
+    it('can only be called by the factory contract', () => {});
+
+    it('sets the sale state to closed when tokenSupply reaches maxSupply - reserved', () => {});
+  });
+  describe('mintFromOwner', () => {
+    it('can only be called by the owner', () => {});
+
+    it('only allows reserved supply tokens to be minted', () => {});
+  });
+
+  describe('withdraw', () => {
+    it('can only be called by the owner', () => {});
+
+    it('withdraws funds to the owner', () => {});
   });
 });
