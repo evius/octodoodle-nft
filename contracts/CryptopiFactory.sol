@@ -99,7 +99,7 @@ contract CryptopiFactory is FactoryERC721, Ownable {
             i < tokensToMint;
             i++
         ) {
-            cryptopi.mintTo(_toAddress);
+            cryptopi.mintFromFactory(_toAddress);
         }
     }
 

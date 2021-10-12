@@ -1,14 +1,14 @@
 const { accounts, contract } = require('@openzeppelin/test-environment');
+const { BigNumber } = require('bignumber.js');
 const [owner, user] = accounts;
-const {
-  BN, // Big Number support
-  expectRevert,
-} = require('@openzeppelin/test-helpers');
+const { expectRevert, ether, balance } = require('@openzeppelin/test-helpers');
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 const expect = chai.expect;
 
 chai.use(chaiAsPromised);
+
+const BN = BigNumber;
 
 const Cryptopi = contract.fromArtifact('Cryptopi');
 
@@ -27,15 +27,16 @@ const EXCEPTION_MESSAGES = {
 
 describe('Cryptopi', () => {
   let cryptopi = null;
-  const salePrice = new BN('200');
-  const preSalePrice = new BN('100');
+  const salePrice = ether('0.06');
+  const preSalePrice = ether('0.04');
 
   beforeEach(async () => {
     cryptopi = await Cryptopi.new(
       'Cryptopi',
       'CPI',
       owner,
-      1000,
+      100,
+      40,
       'ipfs://test',
       'ipfs://test/contract',
       salePrice,
@@ -45,7 +46,8 @@ describe('Cryptopi', () => {
   });
   it('should construct the contract with correct state', async function () {
     expect(await cryptopi.totalSupply()).to.be.bignumber.equal('0');
-    expect(await cryptopi.maxSupply()).to.be.bignumber.equal('1000');
+    expect(await cryptopi.maxSupply()).to.be.bignumber.equal('100');
+    expect(await cryptopi.preSaleSupply()).to.be.bignumber.equal('40');
     expect(await cryptopi.baseTokenURI()).to.equal('ipfs://test');
     expect(await cryptopi.contractURI()).to.equal('ipfs://test/contract');
     expect(await cryptopi.salePrice()).to.be.bignumber.equal('100');
@@ -146,49 +148,206 @@ describe('Cryptopi', () => {
     it('does not mint when sale state is Pending, Paused or Closed', async () => {
       await expectRevert(
         cryptopi.mintFromPublic(new BN('1'), { from: user }),
-        'Sale not open yet. Please try again later.'
+        'Sale not open yet.'
       );
 
-      await cryptopi.setSaleState(SaleState.Paused);
+      await cryptopi.setSaleState(SaleState.Paused, { from: owner });
       await expectRevert(
         cryptopi.mintFromPublic(new BN('1'), { from: user }),
-        'Sale is paused. Please try again later.'
+        'Sale is paused.'
       );
 
-      await cryptopi.setSaleState(SaleState.Closed);
+      await cryptopi.setSaleState(SaleState.Closed, { from: owner });
       await expectRevert(
         cryptopi.mintFromPublic(new BN('1'), { from: user }),
-        'Sale is closed. Checkout opensea.io.'
+        'Sale is closed.'
       );
     });
 
     it('requires the pre-sale price when sale state is PreSaleOpen', async () => {
-      await cryptopi.setSaleState(SaleState.PreSaleOpen);
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
       await expectRevert(
         cryptopi.mintFromPublic(new BN('1'), { from: user }),
-        'Not enough ETH. The pre-sale price is ' + preSalePrice
+        'Not enough ETH.'
       );
     });
 
-    it('requires the sale price when sale state is Open', () => {
-      await cryptopi.setSaleState(SaleState.Open);
+    it('requires the pre-sale price when sale state is PreSaleOpen', async () => {
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
       await expectRevert(
         cryptopi.mintFromPublic(new BN('1'), { from: user }),
-        'Not enough ETH. The sale price is ' + salePrice
+        'Not enough ETH.'
       );
     });
 
-    it('calculates the pre-sale price correctly for quantity', () => {});
+    it('requires the sale price when sale state is Open', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('1'), { from: user }),
+        'Not enough ETH.'
+      );
+    });
 
-    it('calculates the sale price correctly for quantity', () => {});
+    it('calculates the sale price correctly for quantity', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('5'), {
+          from: user,
+          value: ether('0.06'),
+        }),
+        'Not enough ETH.'
+      );
 
-    it('requires less than MAX_MINTABLE_TOKENS (20)', () => {});
+      await cryptopi.mintFromPublic(new BN('5'), {
+        from: user,
+        value: ether('0.3'),
+      });
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('5');
+    });
 
-    it('reverts when quantity less than or equal to 0', () => {});
+    it('calculates the pre-sale price correctly for quantity', async () => {
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('5'), {
+          from: user,
+          value: ether('0.04'),
+        }),
+        'Not enough ETH.'
+      );
 
-    it('mints when sale state is PreSaleOpen or Open', () => {});
+      await cryptopi.mintFromPublic(new BN('5'), {
+        from: user,
+        value: ether('0.2'),
+      });
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('5');
+    });
 
-    it('sets the sale state to closed when tokenSupply reaches maxSupply', () => {});
+    it('requires less than or equal to MAX_MINTABLE_TOKENS (20)', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('21'), {
+          from: user,
+          value: ether('1.26'),
+        }),
+        'Cannot purchase more than 20 tokens.'
+      );
+
+      await cryptopi.mintFromPublic(new BN('20'), {
+        from: user,
+        value: ether('1.2'),
+      });
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('20');
+    });
+
+    it('reverts when quantity less than or equal to 0', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('0'), {
+          from: user,
+          value: ether('0.06'),
+        }),
+        'Cannot purchase 0 tokens.'
+      );
+
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('-1'), {
+          from: user,
+          value: ether('0.06'),
+        }),
+        'value out-of-bounds (argument="quantity", value="-1", code=INVALID_ARGUMENT, version=abi/5.0.7)'
+      );
+    });
+
+    it('reverts when quantity + totalSupply is greater than preSaleSupply', async () => {
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      await cryptopi.mintFromPublic(new BN('20'), {
+        from: user,
+        value: ether('0.8'),
+      });
+      await cryptopi.mintFromPublic(new BN('17'), {
+        from: user,
+        value: ether('0.68'),
+      });
+
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('5'), {
+          from: user,
+          value: ether('0.2'),
+        }),
+        'Quantity requested will exceed the pre-sale supply.'
+      );
+    });
+
+    it('reverts when quantity + totalSupply is greater than maxSupply', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      for (let i = 0; i < 4; i++) {
+        await cryptopi.mintFromPublic(new BN('20'), {
+          from: user,
+          value: ether('1.2'),
+        });
+      }
+      await cryptopi.mintFromPublic(new BN('17'), {
+        from: user,
+        value: ether('1.02'),
+      });
+
+      await expectRevert(
+        cryptopi.mintFromPublic(new BN('5'), {
+          from: user,
+          value: ether('0.2'),
+        }),
+        'Quantity requested will exceed the max supply.'
+      );
+    });
+
+    it('mints when sale state is PreSaleOpen or Open', async () => {
+      const balanceBefore = new BN((await balance.current(owner)).valueOf());
+      console.info('balanceBefore', balanceBefore.valueOf());
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      await cryptopi.mintFromPublic(new BN('2'), {
+        from: user,
+        value: ether('0.08'),
+      });
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('2');
+
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      await cryptopi.mintFromPublic(new BN('3'), {
+        from: user,
+        value: ether('0.18'),
+      });
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('5');
+      const balanceAfter = new BN((await balance.current(owner)).valueOf());
+      console.info('balanceAfter', balanceAfter.valueOf());
+      console.info('sub', balanceAfter.minus(balanceBefore).valueOf());
+      expect(balanceAfter.minus(balanceBefore)).to.equal(ether('0.26'));
+    });
+
+    it('sets the sale state to Open from PreSaleOpen when totalSupply reaches preSaleSupply', async () => {
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      await cryptopi.mintFromPublic(new BN('20'), {
+        from: user,
+        value: ether('1.2'),
+      });
+      await cryptopi.mintFromPublic(new BN('20'), {
+        from: user,
+        value: ether('1.2'),
+      });
+      expect(await cryptopi.saleState()).to.be.bignumber.equal(SaleState.Open);
+    });
+
+    it('sets the sale state to closed when tokenSupply reaches maxSupply', async () => {
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      for (let i = 0; i < 5; i++) {
+        await cryptopi.mintFromPublic(new BN('20'), {
+          from: user,
+          value: ether('1.2'),
+        });
+      }
+
+      expect(await cryptopi.saleState()).to.be.bignumber.equal(
+        SaleState.Closed
+      );
+    });
   });
 
   describe('mintFromFactory', () => {
