@@ -178,26 +178,27 @@ describe('Cryptopi', () => {
       );
     });
 
-    it('can be called by public', async () => {});
-
-    it('mints when sale state is PreSaleOpen or Open', () => {});
-
-    it('sets the sale state to closed when tokenSupply reaches maxSupply - reserved', () => {});
-
     it('calculates the pre-sale price correctly for quantity', () => {});
 
     it('calculates the sale price correctly for quantity', () => {});
+
+    it('requires less than MAX_MINTABLE_TOKENS (20)', () => {});
+
+    it('reverts when quantity less than or equal to 0', () => {});
+
+    it('mints when sale state is PreSaleOpen or Open', () => {});
+
+    it('sets the sale state to closed when tokenSupply reaches maxSupply', () => {});
   });
 
   describe('mintFromFactory', () => {
     it('can only be called by the factory contract', () => {});
 
     it('sets the sale state to closed when tokenSupply reaches maxSupply - reserved', () => {});
-  });
-  describe('mintFromOwner', () => {
-    it('can only be called by the owner', () => {});
 
-    it('only allows reserved supply tokens to be minted', () => {});
+    it('requires less than MAX_MINTABLE_TOKENS (20)', () => {});
+
+    it('reverts when quantity less than or equal to 0', () => {});
   });
 
   describe('withdraw', () => {
@@ -205,4 +206,10 @@ describe('Cryptopi', () => {
 
     it('withdraws funds to the owner', () => {});
   });
+
+  describe('reserveTokens', () => {});
+
+  describe('addToPreSaleWhitelist', () => {});
+
+  describe('removeFromPreSaleWhitelist', () => {});
 });

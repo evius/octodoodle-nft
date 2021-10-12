@@ -16,6 +16,8 @@ contract Cryptopi is ERC721Tradable {
     */
     uint8 public constant RESERVED_SUPPLY = 50;
 
+    uint8 public constant MAX_MINTABLE_TOKENS = 20;
+
     string baseTokenMetadataURI;
     string contractMetatdataURI;
 
