@@ -1,6 +1,11 @@
 const { accounts, contract } = require('@openzeppelin/test-environment');
-const [owner, user, contractAccount] = accounts;
-const { expectRevert, ether, balance, BN } = require('@openzeppelin/test-helpers');
+const [owner, user, factory] = accounts;
+const {
+  expectRevert,
+  ether,
+  balance,
+  BN,
+} = require('@openzeppelin/test-helpers');
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 const expect = chai.expect;
@@ -34,10 +39,12 @@ describe('Cryptopi', () => {
       owner,
       100,
       40,
+      10,
       'ipfs://test',
       'ipfs://test/contract',
       salePrice,
       preSalePrice,
+      factory,
       { from: owner }
     );
   });
@@ -45,10 +52,11 @@ describe('Cryptopi', () => {
     expect(await cryptopi.totalSupply()).to.be.bignumber.equal('0');
     expect(await cryptopi.maxSupply()).to.be.bignumber.equal('100');
     expect(await cryptopi.preSaleSupply()).to.be.bignumber.equal('40');
+    expect(await cryptopi.maxReserveSupply()).to.be.bignumber.equal('10');
     expect(await cryptopi.baseTokenURI()).to.equal('ipfs://test');
     expect(await cryptopi.contractURI()).to.equal('ipfs://test/contract');
-    expect(await cryptopi.salePrice()).to.be.bignumber.equal('100');
-    expect(await cryptopi.preSalePrice()).to.be.bignumber.equal('50');
+    expect(await cryptopi.salePrice()).to.be.bignumber.equal(ether('0.06'));
+    expect(await cryptopi.preSalePrice()).to.be.bignumber.equal(ether('0.04'));
     expect(await cryptopi.saleState()).to.be.bignumber.equal(SaleState.Pending);
   });
 
@@ -290,7 +298,6 @@ describe('Cryptopi', () => {
     });
 
     it('mints when sale state is PreSaleOpen or Open', async () => {
-     
       await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
 
       await cryptopi.mintFromPublic(new BN('2'), {
@@ -305,19 +312,20 @@ describe('Cryptopi', () => {
         value: ether('0.18'),
       });
       expect(await cryptopi.totalSupply()).to.be.bignumber.equal('5');
-      expect(await balance.current(cryptopi.address))
-      .to.be.bignumber.equal(ether('0.26'));
+      expect(await balance.current(cryptopi.address)).to.be.bignumber.equal(
+        ether('0.26')
+      );
     });
 
     it('sets the sale state to Open from PreSaleOpen when totalSupply reaches preSaleSupply', async () => {
       await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
       await cryptopi.mintFromPublic(new BN('20'), {
         from: user,
-        value: ether('1.2'),
+        value: ether('0.8'),
       });
       await cryptopi.mintFromPublic(new BN('20'), {
         from: user,
-        value: ether('1.2'),
+        value: ether('0.8'),
       });
       expect(await cryptopi.saleState()).to.be.bignumber.equal(SaleState.Open);
     });
@@ -338,24 +346,106 @@ describe('Cryptopi', () => {
   });
 
   describe('mintFromFactory', () => {
-    it('can only be called by the factory contract', () => {});
+    it('can only be called by the factory contract', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: owner }),
+        'Only factory contract can call'
+      );
 
-    it('sets the sale state to closed when tokenSupply reaches maxSupply - reserved', () => {});
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: user }),
+        'Only factory contract can call'
+      );
 
-    it('requires less than MAX_MINTABLE_TOKENS (20)', () => {});
+      await cryptopi.mintFromFactory(user, { from: factory });
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('1');
+    });
 
-    it('reverts when quantity less than or equal to 0', () => {});
+    it('does not mint when sale state is Pending, PreSaleOpen Paused or Closed', async () => {
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: factory }),
+        'Sale is not open'
+      );
+
+      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: factory }),
+        'Sale is not open'
+      );
+
+      await cryptopi.setSaleState(SaleState.Paused, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: factory }),
+        'Sale is not open'
+      );
+
+      await cryptopi.setSaleState(SaleState.Closed, { from: owner });
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: factory }),
+        'Sale is not open'
+      );
+    });
+
+    it('sets the sale state to closed when tokenSupply reaches maxSupply', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      for (let i = 0; i < 100; i++) {
+        await cryptopi.mintFromFactory(user, { from: factory });
+      }
+
+      expect(await cryptopi.saleState()).to.be.bignumber.equal(
+        SaleState.Closed
+      );
+    });
   });
 
   describe('withdraw', () => {
-    it('can only be called by the owner', () => {});
+    it('can only be called by the owner', async () => {
+      await expectRevert(
+        cryptopi.withdraw({ from: user }),
+        EXCEPTION_MESSAGES.Ownable_Caller_Not_Owner
+      );
+    });
 
-    it('withdraws funds to the owner', () => {});
+    it('withdraws funds to the owner', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      for (let i = 0; i < 5; i++) {
+        await cryptopi.mintFromPublic(new BN('20'), {
+          from: user,
+          value: ether('1.2'),
+        });
+      }
+
+      const tracker = await balance.tracker(owner);
+
+      await cryptopi.withdraw({ from: owner });
+
+      const { delta, fees } = await tracker.deltaWithFees();
+      expect(delta.add(fees)).to.be.bignumber.equal(ether('6'));
+    });
   });
 
-  describe('reserveTokens', () => {});
+  describe('reserveTokens', () => {
+    it('can only be called by the owner', async () => {
+      await expectRevert(
+        cryptopi.reserveTokens({ from: user }),
+        EXCEPTION_MESSAGES.Ownable_Caller_Not_Owner
+      );
+    });
 
-  describe('addToPreSaleWhitelist', () => {});
+    it('reserves the reserveSupply', async () => {
+      await cryptopi.reserveTokens({ from: owner });
+      expect(await cryptopi.reservedSupply()).to.be.bignumber.equal('10');
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('10');
+    });
 
-  describe('removeFromPreSaleWhitelist', () => {});
+    it('does not reserve more than the reserve supply', async () => {
+      await cryptopi.reserveTokens({ from: owner });
+
+      await expectRevert(
+        cryptopi.reserveTokens({ from: owner }),
+        'Max reserve tokens reached'
+      );
+    });
+  });
 });

@@ -8,26 +8,50 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract Cryptopi is ERC721Tradable {
     using SafeMath for uint256;
     /*
-    Enforce the existence Cryptopi.
+    Limits the existence Octodoodles.
      */
     uint256 public maxSupply;
 
+    /*
+    The amount of Octodoodles available on pre-sale
+    */
     uint256 public preSaleSupply;
 
     /*
     Reserved for owners, giveaways, airdrops, etc.
     */
-    uint8 public constant RESERVED_SUPPLY = 50;
+    uint16 public maxReserveSupply;
+    uint16 public reservedSupply;
 
+    /*
+    The amount of Octodoodles that can be minted per transaction. 
+    Making it more fair.
+    */
     uint8 public constant MAX_MINTABLE_TOKENS = 20;
 
     string baseTokenMetadataURI;
     string contractMetatdataURI;
 
+    /*
+    Sale specs.
+    Pre-sale price is the price per Octodoodle when the Pre-sale is open.
+    Sale price is the price per Octodoodle when the Public sale is open.
+    Sale state controls the various modes of the sale and minting:
+    Pending - Sale has not started yet.
+    PreSaleOpen - The pre-sale is open. When the pre-sale is complete the sale state will automaticlly change to Open.
+    Open - The public sale is open.
+    Closed - The sale is closed and no more Octodoodle can be minted.
+    */
     uint256 public salePrice;
     uint256 public preSalePrice;
     enum SaleState { Pending, PreSaleOpen, Open, Paused, Closed}
     SaleState public saleState;
+
+    /*
+    The address of the OpenSea factory contract.
+    This address will be whitelisted for minting.
+    */
+    address factoryAddress;
 
     constructor(
         string memory _name,
@@ -35,21 +59,28 @@ contract Cryptopi is ERC721Tradable {
         address _proxyRegistryAddress,
         uint256 _maxSupply,
         uint256 _preSaleSupply,
+        uint16 _maxReserveSupply,
         string memory _baseTokenUri,
         string memory _contractUri,
         uint256 _salePrice,
-        uint256 _preSalePrice
+        uint256 _preSalePrice,
+        address _factoryAddress
     )
         ERC721Tradable(_name, _symbol, _proxyRegistryAddress)
     {
         maxSupply = _maxSupply;
         preSaleSupply = _preSaleSupply;
+        maxReserveSupply = _maxReserveSupply;
         baseTokenMetadataURI = _baseTokenUri;
         contractMetatdataURI = _contractUri;
 
         saleState = SaleState.Pending;
         salePrice = _salePrice;
         preSalePrice = _preSalePrice;
+
+        factoryAddress = _factoryAddress;
+
+        reservedSupply = 0;
     }
 
     function baseTokenURI() override public view returns (string memory) {
@@ -58,10 +89,6 @@ contract Cryptopi is ERC721Tradable {
 
     function contractURI() public view returns (string memory) {
         return contractMetatdataURI;
-    }
-
-    function reservedSupply() public pure returns (uint8) {
-        return RESERVED_SUPPLY;
     }
 
     function setSalePrice(uint256 _salePrice) external onlyOwner {
@@ -119,15 +146,46 @@ contract Cryptopi is ERC721Tradable {
         'Quantity requested will exceed the max supply.');
 
         // Validate the transaction value
-        require(state == SaleState.Open || (state == SaleState.PreSaleOpen && msg.value >= preSalePrice.mul(quantity)), 'Not enough ETH.');
-        require(state == SaleState.PreSaleOpen || (state == SaleState.Open && msg.value >= salePrice.mul(quantity)), 'Not enough ETH.');
+        require(state == SaleState.Open || (state == SaleState.PreSaleOpen && msg.value == preSalePrice.mul(quantity)), 'Not enough ETH.');
+        require(state == SaleState.PreSaleOpen || (state == SaleState.Open && msg.value == salePrice.mul(quantity)), 'Not enough ETH.');
 
         for (uint i = 0; i < quantity; i++) {
             mintTo(msg.sender);
         }
+
+        if (this.totalSupply() == preSaleSupply && state == SaleState.PreSaleOpen) {
+            saleState = SaleState.Open;
+        }
+
+        if (this.totalSupply() == maxSupply) {
+            saleState = SaleState.Closed;
+        }
     }
 
-    function mintFromFactory(address _to) public {
+    function mintFromFactory(address _to) external {
+        SaleState state = saleState;
+        require(msg.sender == factoryAddress, 'Only factory contract can call');
+        require(state == SaleState.Open, 'Sale is not open');
+
         mintTo(_to);
+
+        if (this.totalSupply() == maxSupply) {
+            saleState = SaleState.Closed;
+        }
+    }
+
+    function reserveTokens() external onlyOwner {
+        require(reservedSupply < maxReserveSupply, 'Max reserve tokens reached');
+
+        for (uint i = 0; i < maxReserveSupply; i++) {
+            mintTo(msg.sender);
+        }
+
+        reservedSupply = maxReserveSupply;
+    }
+
+    function withdraw() public onlyOwner {
+        uint balance = address(this).balance;
+        payable(msg.sender).transfer(balance);
     }
 }
