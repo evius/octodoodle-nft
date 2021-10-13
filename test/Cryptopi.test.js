@@ -1,14 +1,11 @@
 const { accounts, contract } = require('@openzeppelin/test-environment');
-const { BigNumber } = require('bignumber.js');
-const [owner, user] = accounts;
-const { expectRevert, ether, balance } = require('@openzeppelin/test-helpers');
+const [owner, user, contractAccount] = accounts;
+const { expectRevert, ether, balance, BN } = require('@openzeppelin/test-helpers');
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 const expect = chai.expect;
 
 chai.use(chaiAsPromised);
-
-const BN = BigNumber;
 
 const Cryptopi = contract.fromArtifact('Cryptopi');
 
@@ -172,14 +169,6 @@ describe('Cryptopi', () => {
       );
     });
 
-    it('requires the pre-sale price when sale state is PreSaleOpen', async () => {
-      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
-      await expectRevert(
-        cryptopi.mintFromPublic(new BN('1'), { from: user }),
-        'Not enough ETH.'
-      );
-    });
-
     it('requires the sale price when sale state is Open', async () => {
       await cryptopi.setSaleState(SaleState.Open, { from: owner });
       await expectRevert(
@@ -301,9 +290,9 @@ describe('Cryptopi', () => {
     });
 
     it('mints when sale state is PreSaleOpen or Open', async () => {
-      const balanceBefore = new BN((await balance.current(owner)).valueOf());
-      console.info('balanceBefore', balanceBefore.valueOf());
+     
       await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+
       await cryptopi.mintFromPublic(new BN('2'), {
         from: user,
         value: ether('0.08'),
@@ -316,10 +305,8 @@ describe('Cryptopi', () => {
         value: ether('0.18'),
       });
       expect(await cryptopi.totalSupply()).to.be.bignumber.equal('5');
-      const balanceAfter = new BN((await balance.current(owner)).valueOf());
-      console.info('balanceAfter', balanceAfter.valueOf());
-      console.info('sub', balanceAfter.minus(balanceBefore).valueOf());
-      expect(balanceAfter.minus(balanceBefore)).to.equal(ether('0.26'));
+      expect(await balance.current(cryptopi.address))
+      .to.be.bignumber.equal(ether('0.26'));
     });
 
     it('sets the sale state to Open from PreSaleOpen when totalSupply reaches preSaleSupply', async () => {
@@ -336,7 +323,7 @@ describe('Cryptopi', () => {
     });
 
     it('sets the sale state to closed when tokenSupply reaches maxSupply', async () => {
-      await cryptopi.setSaleState(SaleState.PreSaleOpen, { from: owner });
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
       for (let i = 0; i < 5; i++) {
         await cryptopi.mintFromPublic(new BN('20'), {
           from: user,
