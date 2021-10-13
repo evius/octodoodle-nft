@@ -42,14 +42,14 @@ contract CryptopiFactory is FactoryERC721, Ownable {
     }
 
     function symbol() override external pure returns (string memory) {
-        return "CPF";
+        return "OCD";
     }
 
     function supportsFactoryInterface() override public pure returns (bool) {
         return true;
     }
 
-    function numOptions() override public view returns (uint256) {
+    function numOptions() override public pure returns (uint256) {
         return NUM_OPTIONS;
     }
 
