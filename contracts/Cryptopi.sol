@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import "./ERC721Tradable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import './ERC721Tradable.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 contract Cryptopi is ERC721Tradable {
     using SafeMath for uint256;
@@ -48,7 +48,13 @@ contract Cryptopi is ERC721Tradable {
     */
     uint256 public salePrice;
     uint256 public preSalePrice;
-    enum SaleState { Pending, PreSaleOpen, Open, Paused, Closed}
+    enum SaleState {
+        Pending,
+        PreSaleOpen,
+        Open,
+        Paused,
+        Closed
+    }
     SaleState public saleState;
 
     /*
@@ -69,9 +75,7 @@ contract Cryptopi is ERC721Tradable {
         string memory _pendingTokenUri,
         uint256 _salePrice,
         uint256 _preSalePrice
-    )
-        ERC721Tradable(_name, _symbol, _proxyRegistryAddress)
-    {
+    ) ERC721Tradable(_name, _symbol, _proxyRegistryAddress) {
         maxSupply = _maxSupply;
         preSaleSupply = _preSaleSupply;
         maxReserveSupply = _maxReserveSupply;
@@ -91,7 +95,7 @@ contract Cryptopi is ERC721Tradable {
         factoryAddress = _factoryAddress;
     }
 
-    function baseTokenURI() override public view returns (string memory) {
+    function baseTokenURI() public view override returns (string memory) {
         return baseTokenMetadataURI;
     }
 
@@ -99,7 +103,12 @@ contract Cryptopi is ERC721Tradable {
         return contractMetatdataURI;
     }
 
-    function tokenURI(uint256 _tokenId) override public view returns (string memory) {
+    function tokenURI(uint256 _tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
         if (saleState == SaleState.Pending || _tokenId > this.totalSupply()) {
             return pendingTokenMetadataURI;
         }
@@ -115,8 +124,15 @@ contract Cryptopi is ERC721Tradable {
         baseTokenMetadataURI = _baseTokenURI;
     }
 
-    function setPendingTokenURI(string memory _pendingTokenURI) external onlyOwner {
+    function setPendingTokenURI(string memory _pendingTokenURI)
+        external
+        onlyOwner
+    {
         pendingTokenMetadataURI = _pendingTokenURI;
+    }
+
+    function pendingTokenURI() external view returns (string memory) {
+        return pendingTokenMetadataURI;
     }
 
     function setSalePrice(uint256 _salePrice) external onlyOwner {
@@ -150,30 +166,55 @@ contract Cryptopi is ERC721Tradable {
     function mintFromPublic(uint8 quantity) external payable {
         SaleState state = saleState;
         // Check the sale state before continuing
-        require(state == SaleState.PreSaleOpen || state == SaleState.Open, getSaleStateMessage());
+        require(
+            state == SaleState.PreSaleOpen || state == SaleState.Open,
+            getSaleStateMessage()
+        );
 
         // Validate the requested quantity
         require(quantity > 0, 'Cannot purchase 0 tokens.');
-        require(quantity <= MAX_MINTABLE_TOKENS, 'Cannot purchase more than 20 tokens.');
+        require(
+            quantity <= MAX_MINTABLE_TOKENS,
+            'Cannot purchase more than 20 tokens.'
+        );
 
         // Validate the supply
-        require(state == SaleState.Open || (state == SaleState.PreSaleOpen 
-        && quantity + this.totalSupply() <= preSaleSupply), 
-        'Quantity requested will exceed the pre-sale supply.');
+        require(
+            state == SaleState.Open ||
+                (state == SaleState.PreSaleOpen &&
+                    quantity + this.totalSupply() <= preSaleSupply),
+            'Quantity requested will exceed the pre-sale supply.'
+        );
 
-        require(state == SaleState.PreSaleOpen || (state == SaleState.Open 
-        && quantity + this.totalSupply() <= maxSupply), 
-        'Quantity requested will exceed the max supply.');
+        require(
+            state == SaleState.PreSaleOpen ||
+                (state == SaleState.Open &&
+                    quantity + this.totalSupply() <= maxSupply),
+            'Quantity requested will exceed the max supply.'
+        );
 
         // Validate the transaction value
-        require(state == SaleState.Open || (state == SaleState.PreSaleOpen && msg.value == preSalePrice.mul(quantity)), 'Not enough ETH.');
-        require(state == SaleState.PreSaleOpen || (state == SaleState.Open && msg.value == salePrice.mul(quantity)), 'Not enough ETH.');
+        require(
+            state == SaleState.Open ||
+                (state == SaleState.PreSaleOpen &&
+                    msg.value == preSalePrice.mul(quantity)),
+            'Not enough ETH.'
+        );
+        require(
+            state == SaleState.PreSaleOpen ||
+                (state == SaleState.Open &&
+                    msg.value == salePrice.mul(quantity)),
+            'Not enough ETH.'
+        );
 
-        for (uint i = 0; i < quantity; i++) {
+        for (uint256 i = 0; i < quantity; i++) {
             mintTo(msg.sender);
         }
 
-        if (this.totalSupply() == preSaleSupply && state == SaleState.PreSaleOpen) {
+        if (
+            this.totalSupply() == preSaleSupply &&
+            state == SaleState.PreSaleOpen
+        ) {
             saleState = SaleState.Open;
         }
 
@@ -184,6 +225,7 @@ contract Cryptopi is ERC721Tradable {
 
     function mintFromFactory(address _to) external {
         SaleState state = saleState;
+        require(factoryAddress != address(0), 'Factory address not set');
         require(msg.sender == factoryAddress, 'Only factory contract can call');
         require(state == SaleState.Open, 'Sale is not open');
 
@@ -195,9 +237,12 @@ contract Cryptopi is ERC721Tradable {
     }
 
     function reserveTokens() external onlyOwner {
-        require(reservedSupply < maxReserveSupply, 'Max reserve tokens reached');
+        require(
+            reservedSupply < maxReserveSupply,
+            'Max reserve tokens reached'
+        );
 
-        for (uint i = 0; i < maxReserveSupply; i++) {
+        for (uint256 i = 0; i < maxReserveSupply; i++) {
             mintTo(msg.sender);
         }
 
@@ -205,7 +250,7 @@ contract Cryptopi is ERC721Tradable {
     }
 
     function withdraw() public onlyOwner {
-        uint balance = address(this).balance;
+        uint256 balance = address(this).balance;
         payable(msg.sender).transfer(balance);
     }
 }

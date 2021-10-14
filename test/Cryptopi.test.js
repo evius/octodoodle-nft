@@ -55,7 +55,9 @@ describe('Cryptopi', () => {
     expect(await cryptopi.maxReserveSupply()).to.be.bignumber.equal('10');
     expect(await cryptopi.baseTokenURI()).to.equal('ipfs://test');
     expect(await cryptopi.contractURI()).to.equal('ipfs://test/contract.json');
-    expect(await cryptopi.pendingTokenURI()).to.equal('ipfs://test/pending.json');
+    expect(await cryptopi.pendingTokenURI()).to.equal(
+      'ipfs://test/pendingToken.json'
+    );
     expect(await cryptopi.salePrice()).to.be.bignumber.equal(ether('0.06'));
     expect(await cryptopi.preSalePrice()).to.be.bignumber.equal(ether('0.04'));
     expect(await cryptopi.saleState()).to.be.bignumber.equal(SaleState.Pending);
@@ -68,12 +70,15 @@ describe('Cryptopi', () => {
   describe('setFactoryAddress', () => {
     it('can only be called by the owner', async () => {
       await expectRevert(
-        cryptopi.setSaleState(SaleState.Open, { from: user }),
+        cryptopi.setFactoryAddress(factory, { from: user }),
         EXCEPTION_MESSAGES.Ownable_Caller_Not_Owner
       );
     });
 
-    it('updates the factory address', () => {});
+    it('updates the factory address', () => async () => {
+      await cryptopi.setFactoryAddress(factory, { from: owner }),
+        expect(await cryptopi.factoryAddress()).to.equal(factory);
+    });
   });
 
   describe('setSaleState', () => {
@@ -172,14 +177,14 @@ describe('Cryptopi', () => {
   describe('setPendingTokenURI', () => {
     it('can only be called by the owner', async () => {
       await expectRevert(
-        cryptopi.setBaseTokenURI('test', { from: user }),
+        cryptopi.setPendingTokenURI('test', { from: user }),
         EXCEPTION_MESSAGES.Ownable_Caller_Not_Owner
       );
     });
     it('updates the pending token URI', async () => {
-      const newUri = 'ipfs://new-token-uri';
-      await cryptopi.setBaseTokenURI(newUri, { from: owner });
-      expect(await cryptopi.baseTokenURI()).to.equal(newUri);
+      const newUri = 'ipfs://test/new-token-uri.json';
+      await cryptopi.setPendingTokenURI(newUri, { from: owner });
+      expect(await cryptopi.pendingTokenURI()).to.equal(newUri);
     });
   });
 
@@ -382,6 +387,14 @@ describe('Cryptopi', () => {
   describe('mintFromFactory', () => {
     it('can only be called by the factory contract', async () => {
       await cryptopi.setSaleState(SaleState.Open, { from: owner });
+
+      await expectRevert(
+        cryptopi.mintFromFactory(user, { from: factory }),
+        'Factory address not set'
+      );
+
+      await cryptopi.setFactoryAddress(factory, { from: owner });
+
       await expectRevert(
         cryptopi.mintFromFactory(user, { from: owner }),
         'Only factory contract can call'
@@ -397,6 +410,8 @@ describe('Cryptopi', () => {
     });
 
     it('does not mint when sale state is Pending, PreSaleOpen Paused or Closed', async () => {
+      await cryptopi.setFactoryAddress(factory, { from: owner });
+
       await expectRevert(
         cryptopi.mintFromFactory(user, { from: factory }),
         'Sale is not open'
@@ -422,6 +437,7 @@ describe('Cryptopi', () => {
     });
 
     it('sets the sale state to closed when tokenSupply reaches maxSupply', async () => {
+      await cryptopi.setFactoryAddress(factory, { from: owner });
       await cryptopi.setSaleState(SaleState.Open, { from: owner });
       for (let i = 0; i < 100; i++) {
         await cryptopi.mintFromFactory(user, { from: factory });
