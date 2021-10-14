@@ -41,10 +41,10 @@ describe('Cryptopi', () => {
       40,
       10,
       'ipfs://test',
-      'ipfs://test/contract',
+      'ipfs://test/contract.json',
+      'ipfs://test/pendingToken.json',
       salePrice,
       preSalePrice,
-      factory,
       { from: owner }
     );
   });
@@ -54,7 +54,8 @@ describe('Cryptopi', () => {
     expect(await cryptopi.preSaleSupply()).to.be.bignumber.equal('40');
     expect(await cryptopi.maxReserveSupply()).to.be.bignumber.equal('10');
     expect(await cryptopi.baseTokenURI()).to.equal('ipfs://test');
-    expect(await cryptopi.contractURI()).to.equal('ipfs://test/contract');
+    expect(await cryptopi.contractURI()).to.equal('ipfs://test/contract.json');
+    expect(await cryptopi.pendingTokenURI()).to.equal('ipfs://test/pending.json');
     expect(await cryptopi.salePrice()).to.be.bignumber.equal(ether('0.06'));
     expect(await cryptopi.preSalePrice()).to.be.bignumber.equal(ether('0.04'));
     expect(await cryptopi.saleState()).to.be.bignumber.equal(SaleState.Pending);
@@ -62,6 +63,17 @@ describe('Cryptopi', () => {
 
   it('the deployer is the owner', async function () {
     expect(await cryptopi.owner()).to.equal(owner);
+  });
+
+  describe('setFactoryAddress', () => {
+    it('can only be called by the owner', async () => {
+      await expectRevert(
+        cryptopi.setSaleState(SaleState.Open, { from: user }),
+        EXCEPTION_MESSAGES.Ownable_Caller_Not_Owner
+      );
+    });
+
+    it('updates the factory address', () => {});
   });
 
   describe('setSaleState', () => {
@@ -143,6 +155,28 @@ describe('Cryptopi', () => {
       );
     });
     it('updates the base token URI', async () => {
+      const newUri = 'ipfs://new-token-uri';
+      await cryptopi.setBaseTokenURI(newUri, { from: owner });
+      expect(await cryptopi.baseTokenURI()).to.equal(newUri);
+    });
+  });
+
+  describe('tokenURI', () => {
+    it('returns the pending token URI when the sale is pending', () => {});
+
+    it('returns the pending token URI when the token has not been minted yet', () => {});
+
+    it('returns the token URI when available', () => {});
+  });
+
+  describe('setPendingTokenURI', () => {
+    it('can only be called by the owner', async () => {
+      await expectRevert(
+        cryptopi.setBaseTokenURI('test', { from: user }),
+        EXCEPTION_MESSAGES.Ownable_Caller_Not_Owner
+      );
+    });
+    it('updates the pending token URI', async () => {
       const newUri = 'ipfs://new-token-uri';
       await cryptopi.setBaseTokenURI(newUri, { from: owner });
       expect(await cryptopi.baseTokenURI()).to.equal(newUri);

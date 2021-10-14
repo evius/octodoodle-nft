@@ -63,7 +63,7 @@ abstract contract ERC721Tradable is ContextMixin, ERC721Enumerable, NativeMetaTr
 
     function baseTokenURI() virtual public view returns (string memory);
 
-    function tokenURI(uint256 _tokenId) override public view returns (string memory) {
+    function tokenURI(uint256 _tokenId) override virtual public view returns (string memory) {
         return string(abi.encodePacked(baseTokenURI(), Strings.toString(_tokenId)));
     }
 

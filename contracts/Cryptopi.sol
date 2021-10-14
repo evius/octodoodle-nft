@@ -29,8 +29,12 @@ contract Cryptopi is ERC721Tradable {
     */
     uint8 public constant MAX_MINTABLE_TOKENS = 20;
 
+    /*
+    Metadata URI's.
+    */
     string baseTokenMetadataURI;
     string contractMetatdataURI;
+    string pendingTokenMetadataURI;
 
     /*
     Sale specs.
@@ -62,25 +66,29 @@ contract Cryptopi is ERC721Tradable {
         uint16 _maxReserveSupply,
         string memory _baseTokenUri,
         string memory _contractUri,
+        string memory _pendingTokenUri,
         uint256 _salePrice,
-        uint256 _preSalePrice,
-        address _factoryAddress
+        uint256 _preSalePrice
     )
         ERC721Tradable(_name, _symbol, _proxyRegistryAddress)
     {
         maxSupply = _maxSupply;
         preSaleSupply = _preSaleSupply;
         maxReserveSupply = _maxReserveSupply;
+
         baseTokenMetadataURI = _baseTokenUri;
         contractMetatdataURI = _contractUri;
+        pendingTokenMetadataURI = _pendingTokenUri;
 
         saleState = SaleState.Pending;
         salePrice = _salePrice;
         preSalePrice = _preSalePrice;
 
-        factoryAddress = _factoryAddress;
-
         reservedSupply = 0;
+    }
+
+    function setFactoryAddress(address _factoryAddress) external onlyOwner {
+        factoryAddress = _factoryAddress;
     }
 
     function baseTokenURI() override public view returns (string memory) {
@@ -91,12 +99,12 @@ contract Cryptopi is ERC721Tradable {
         return contractMetatdataURI;
     }
 
-    function setSalePrice(uint256 _salePrice) external onlyOwner {
-        salePrice = _salePrice;
-    }
+    function tokenURI(uint256 _tokenId) override public view returns (string memory) {
+        if (saleState == SaleState.Pending || _tokenId > this.totalSupply()) {
+            return pendingTokenMetadataURI;
+        }
 
-    function setPreSalePrice(uint256 _preSalePrice) external onlyOwner {
-        preSalePrice = _preSalePrice;
+        return super.tokenURI(_tokenId);
     }
 
     function setContractURI(string memory _contractURI) external onlyOwner {
@@ -105,6 +113,18 @@ contract Cryptopi is ERC721Tradable {
 
     function setBaseTokenURI(string memory _baseTokenURI) external onlyOwner {
         baseTokenMetadataURI = _baseTokenURI;
+    }
+
+    function setPendingTokenURI(string memory _pendingTokenURI) external onlyOwner {
+        pendingTokenMetadataURI = _pendingTokenURI;
+    }
+
+    function setSalePrice(uint256 _salePrice) external onlyOwner {
+        salePrice = _salePrice;
+    }
+
+    function setPreSalePrice(uint256 _preSalePrice) external onlyOwner {
+        preSalePrice = _preSalePrice;
     }
 
     function setSaleState(SaleState state) external onlyOwner {
