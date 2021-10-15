@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "truffle compile && mocha --exit --recursive --timeout 15000",
+    "test": "truffle test",
     "build": "truffle compile"
   },
   "author": "",
@@ -21,6 +21,8 @@
     "eth-gas-reporter": "^0.2.22",
     "ganache-cli": "^6.12.2",
     "jest": "^27.2.5",
+    "prettier": "^2.4.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.18",
     "truffle": "^5.4.11"
   }
 }

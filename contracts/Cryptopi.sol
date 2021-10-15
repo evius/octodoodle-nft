@@ -20,7 +20,7 @@ contract Cryptopi is ERC721Tradable {
     /*
     Reserved for owners, giveaways, airdrops, etc.
     */
-    uint16 public maxReserveSupply;
+    uint16 public maxReservedSupply;
     uint16 public reservedSupply;
 
     /*
@@ -69,7 +69,7 @@ contract Cryptopi is ERC721Tradable {
         address _proxyRegistryAddress,
         uint256 _maxSupply,
         uint256 _preSaleSupply,
-        uint16 _maxReserveSupply,
+        uint16 _maxReservedSupply,
         string memory _baseTokenUri,
         string memory _contractUri,
         string memory _pendingTokenUri,
@@ -78,7 +78,7 @@ contract Cryptopi is ERC721Tradable {
     ) ERC721Tradable(_name, _symbol, _proxyRegistryAddress) {
         maxSupply = _maxSupply;
         preSaleSupply = _preSaleSupply;
-        maxReserveSupply = _maxReserveSupply;
+        maxReservedSupply = _maxReservedSupply;
 
         baseTokenMetadataURI = _baseTokenUri;
         contractMetatdataURI = _contractUri;
@@ -163,11 +163,28 @@ contract Cryptopi is ERC721Tradable {
         return 'Uknown sale state';
     }
 
-    function mintFromPublic(uint8 quantity) external payable {
-        SaleState state = saleState;
+    function _checkAndCloseSale() internal {
+        if (this.totalSupply() == maxSupply.sub(maxReservedSupply)) {
+            saleState = SaleState.Closed;
+        }
+    }
+
+    function _checkAndOpenSale() internal {
+        if (
+            this.totalSupply() == preSaleSupply &&
+            saleState == SaleState.PreSaleOpen
+        ) {
+            saleState = SaleState.Open;
+        }
+    }
+
+    /**
+    @dev Validates the sale state, quantity, supply and eth before minting
+    */
+    function _canMintPublic(uint8 quantity) internal view {
         // Check the sale state before continuing
         require(
-            state == SaleState.PreSaleOpen || state == SaleState.Open,
+            saleState == SaleState.PreSaleOpen || saleState == SaleState.Open,
             getSaleStateMessage()
         );
 
@@ -180,73 +197,90 @@ contract Cryptopi is ERC721Tradable {
 
         // Validate the supply
         require(
-            state == SaleState.Open ||
-                (state == SaleState.PreSaleOpen &&
+            saleState == SaleState.Open ||
+                (saleState == SaleState.PreSaleOpen &&
                     quantity + this.totalSupply() <= preSaleSupply),
             'Quantity requested will exceed the pre-sale supply.'
         );
 
         require(
-            state == SaleState.PreSaleOpen ||
-                (state == SaleState.Open &&
+            saleState == SaleState.PreSaleOpen ||
+                (saleState == SaleState.Open &&
                     quantity + this.totalSupply() <= maxSupply),
             'Quantity requested will exceed the max supply.'
         );
 
         // Validate the transaction value
         require(
-            state == SaleState.Open ||
-                (state == SaleState.PreSaleOpen &&
+            saleState == SaleState.Open ||
+                (saleState == SaleState.PreSaleOpen &&
                     msg.value == preSalePrice.mul(quantity)),
             'Not enough ETH.'
         );
         require(
-            state == SaleState.PreSaleOpen ||
-                (state == SaleState.Open &&
+            saleState == SaleState.PreSaleOpen ||
+                (saleState == SaleState.Open &&
                     msg.value == salePrice.mul(quantity)),
             'Not enough ETH.'
         );
+    }
 
+    /** 
+    @dev Mint the supplied quantity of tokens (up to 20).
+    Available to public and the exact amount of ETH must be supplied
+    */
+    function mintFromPublic(uint8 quantity) external payable {
+        // Validation before minting
+        _canMintPublic(quantity);
+
+        // If validation passes then mint the tokens
         for (uint256 i = 0; i < quantity; i++) {
             mintTo(msg.sender);
         }
 
-        if (
-            this.totalSupply() == preSaleSupply &&
-            state == SaleState.PreSaleOpen
-        ) {
-            saleState = SaleState.Open;
-        }
-
-        if (this.totalSupply() == maxSupply) {
-            saleState = SaleState.Closed;
-        }
+        // Check for preSaleSupply reached and open the public sale if so
+        _checkAndOpenSale();
+        // Check for maxSupply - maxReservedSupply reach and close the sale if so
+        _checkAndCloseSale();
     }
 
-    function mintFromFactory(address _to) external {
-        SaleState state = saleState;
+    /** 
+    @dev Validates factory address caller and sale state before minting
+    */
+    function _canMintFactory() internal view {
         require(factoryAddress != address(0), 'Factory address not set');
         require(msg.sender == factoryAddress, 'Only factory contract can call');
-        require(state == SaleState.Open, 'Sale is not open');
+        require(saleState == SaleState.Open, 'Sale is not open');
+    }
+
+    /** 
+    @dev Mint a single token.
+    Available to the Factory contract only
+    */
+    function mintFromFactory(address _to) external {
+        // Validation before minting
+        _canMintFactory();
 
         mintTo(_to);
 
-        if (this.totalSupply() == maxSupply) {
-            saleState = SaleState.Closed;
-        }
+        // Check for maxSupply - maxReservedSupply reach and close the sale if so
+        _checkAndCloseSale();
     }
 
+    /** 
+    @dev Reserves the maxReservedSupply
+    */
     function reserveTokens() external onlyOwner {
         require(
-            reservedSupply < maxReserveSupply,
+            reservedSupply < maxReservedSupply,
             'Max reserve tokens reached'
         );
 
-        for (uint256 i = 0; i < maxReserveSupply; i++) {
+        for (uint256 i = 0; i < maxReservedSupply; i++) {
             mintTo(msg.sender);
         }
 
-        reservedSupply = maxReserveSupply;
+        reservedSupply = maxReservedSupply;
     }
 
     function withdraw() public onlyOwner {

@@ -52,7 +52,7 @@ describe('Cryptopi', () => {
     expect(await cryptopi.totalSupply()).to.be.bignumber.equal('0');
     expect(await cryptopi.maxSupply()).to.be.bignumber.equal('100');
     expect(await cryptopi.preSaleSupply()).to.be.bignumber.equal('40');
-    expect(await cryptopi.maxReserveSupply()).to.be.bignumber.equal('10');
+    expect(await cryptopi.maxReservedSupply()).to.be.bignumber.equal('10');
     expect(await cryptopi.baseTokenURI()).to.equal('ipfs://test');
     expect(await cryptopi.contractURI()).to.equal('ipfs://test/contract.json');
     expect(await cryptopi.pendingTokenURI()).to.equal(
@@ -167,11 +167,34 @@ describe('Cryptopi', () => {
   });
 
   describe('tokenURI', () => {
-    it('returns the pending token URI when the sale is pending', () => {});
+    it('returns the pending token URI when the sale is pending', async () => {
+      expect(await cryptopi.tokenURI(new BN('1'))).to.equal(
+        'ipfs://test/pendingToken.json'
+      );
+    });
 
-    it('returns the pending token URI when the token has not been minted yet', () => {});
+    it('returns the pending token URI when the token has not been minted yet', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+      expect(await cryptopi.tokenURI(new BN('1'))).to.equal(
+        'ipfs://test/pendingToken.json'
+      );
+    });
 
-    it('returns the token URI when available', () => {});
+    it('returns the token URI when available', async () => {
+      await cryptopi.setSaleState(SaleState.Open, { from: owner });
+
+      await cryptopi.mintFromPublic(new BN('5'), {
+        from: user,
+        value: ether('0.3'),
+      });
+
+      expect(await cryptopi.tokenURI(new BN('2'))).to.equal(
+        'ipfs://test/2.json'
+      );
+      expect(await cryptopi.tokenURI(new BN('5'))).to.equal(
+        'ipfs://test/5.json'
+      );
+    });
   });
 
   describe('setPendingTokenURI', () => {
@@ -369,15 +392,20 @@ describe('Cryptopi', () => {
       expect(await cryptopi.saleState()).to.be.bignumber.equal(SaleState.Open);
     });
 
-    it('sets the sale state to closed when tokenSupply reaches maxSupply', async () => {
+    it('sets the sale state to closed when tokenSupply reaches maxSupply - maxReservedSupply', async () => {
       await cryptopi.setSaleState(SaleState.Open, { from: owner });
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 4; i++) {
         await cryptopi.mintFromPublic(new BN('20'), {
           from: user,
           value: ether('1.2'),
         });
       }
+      await cryptopi.mintFromPublic(new BN('10'), {
+        from: user,
+        value: ether('0.6'),
+      });
 
+      expect(await cryptopi.totalSupply()).to.be.bignumber.equal('90');
       expect(await cryptopi.saleState()).to.be.bignumber.equal(
         SaleState.Closed
       );
@@ -436,10 +464,10 @@ describe('Cryptopi', () => {
       );
     });
 
-    it('sets the sale state to closed when tokenSupply reaches maxSupply', async () => {
+    it('sets the sale state to closed when tokenSupply reaches maxSupply - maxReservedSupply', async () => {
       await cryptopi.setFactoryAddress(factory, { from: owner });
       await cryptopi.setSaleState(SaleState.Open, { from: owner });
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 90; i++) {
         await cryptopi.mintFromFactory(user, { from: factory });
       }
 
