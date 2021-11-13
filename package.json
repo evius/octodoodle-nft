@@ -1,7 +1,7 @@
 {
-  "name": "cryptopi-crew-nft",
+  "name": "octodoodles-nft",
   "version": "1.0.0",
-  "description": "Cryptopi Crew ERC721 Smart Contracts",
+  "description": "Octodoodles ERC721 Smart Contracts",
   "main": "truffle-config.js",
   "directories": {
     "test": "test"
@@ -24,5 +24,11 @@
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
     "truffle": "^5.4.11"
+  },
+  "dependencies": {
+    "@0x/subproviders": "^6.6.1",
+    "@truffle/hdwallet-provider": "^1.5.1",
+    "@umaprotocol/truffle-ledger-provider": "^1.0.5",
+    "opensea-js": "^1.2.1"
   }
 }

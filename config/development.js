@@ -1,8 +1,8 @@
 const { ether } = require('@openzeppelin/test-helpers');
 module.exports = {
-  ownerAddress: '0xdd7d325d749D47c3B1304c36234844bb8193e3f9',
-  Cryptopi: {
-    name: 'Cryptopi',
+  ownerAddress: '0x5Fed9a5024F2904a604107376a458E890d98edFe',
+  Octodoodles: {
+    name: 'Octodoodles',
     symbol: 'CPI',
     proxyRegistryAddress: '0xf57b2c51ded3a29e6891aba85459d600256cf317',
     maxSupply: '100',

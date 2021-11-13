@@ -5,9 +5,9 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./IFactoryERC721.sol";
-import "./Cryptopi.sol";
+import "./Octodoodles.sol";
 
-contract CryptopiFactory is FactoryERC721, Ownable {
+contract OctodoodlesFactory is FactoryERC721, Ownable {
     using Strings for string;
 
     event Transfer(
@@ -38,7 +38,7 @@ contract CryptopiFactory is FactoryERC721, Ownable {
     }
 
     function name() override external pure returns (string memory) {
-        return "Cryptopi Item Sale";
+        return "Octodoodles Item Sale";
     }
 
     function symbol() override external pure returns (string memory) {
@@ -90,7 +90,7 @@ contract CryptopiFactory is FactoryERC721, Ownable {
         );
         require(canMint(_optionId));
 
-        Cryptopi cryptopi = Cryptopi(nftAddress);
+        Octodoodles octodoodles = Octodoodles(nftAddress);
 
         uint256 tokensToMint = getTokensToMint(_optionId);
 
@@ -99,7 +99,7 @@ contract CryptopiFactory is FactoryERC721, Ownable {
             i < tokensToMint;
             i++
         ) {
-            cryptopi.mintFromFactory(_toAddress);
+            octodoodles.mintFromFactory(_toAddress);
         }
     }
 
@@ -108,13 +108,13 @@ contract CryptopiFactory is FactoryERC721, Ownable {
             return false;
         }
 
-        Cryptopi cryptopi = Cryptopi(nftAddress);
-        uint256 cryptopiSupply = cryptopi.totalSupply();
-        uint256 cryptopiMaxSupply = cryptopi.maxSupply();
+        Octodoodles octodoodles = Octodoodles(nftAddress);
+        uint256 octodoodlesSupply = octodoodles.totalSupply();
+        uint256 octodoodlesMaxSupply = octodoodles.maxSupply();
 
         uint256 numItemsAllocated = getTokensToMint(_optionId);
         
-        return cryptopiSupply < (cryptopiMaxSupply - numItemsAllocated);
+        return octodoodlesSupply < (octodoodlesMaxSupply - numItemsAllocated);
     }
 
     function tokenURI(uint256 _optionId) override external view returns (string memory) {

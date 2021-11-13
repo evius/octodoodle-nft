@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import './ERC721Tradable.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
-contract Cryptopi is ERC721Tradable {
+contract Octodoodles is ERC721Tradable {
     using SafeMath for uint256;
     /*
     Limits the existence Octodoodles.
@@ -18,16 +18,10 @@ contract Cryptopi is ERC721Tradable {
     uint256 public preSaleSupply;
 
     /*
-    Reserved for owners, giveaways, airdrops, etc.
-    */
-    uint16 public maxReservedSupply;
-    uint16 public reservedSupply;
-
-    /*
     The amount of Octodoodles that can be minted per transaction. 
     Making it more fair.
     */
-    uint8 public constant MAX_MINTABLE_TOKENS = 20;
+    uint8 public constant MAX_MINTABLE_TOKENS = 30;
 
     /*
     Metadata URI's.
@@ -57,19 +51,12 @@ contract Cryptopi is ERC721Tradable {
     }
     SaleState public saleState;
 
-    /*
-    The address of the OpenSea factory contract.
-    This address will be whitelisted for minting.
-    */
-    address factoryAddress;
-
     constructor(
         string memory _name,
         string memory _symbol,
         address _proxyRegistryAddress,
         uint256 _maxSupply,
         uint256 _preSaleSupply,
-        uint16 _maxReservedSupply,
         string memory _baseTokenUri,
         string memory _contractUri,
         string memory _pendingTokenUri,
@@ -78,21 +65,14 @@ contract Cryptopi is ERC721Tradable {
     ) ERC721Tradable(_name, _symbol, _proxyRegistryAddress) {
         maxSupply = _maxSupply;
         preSaleSupply = _preSaleSupply;
-        maxReservedSupply = _maxReservedSupply;
 
         baseTokenMetadataURI = _baseTokenUri;
         contractMetatdataURI = _contractUri;
         pendingTokenMetadataURI = _pendingTokenUri;
 
-        saleState = SaleState.Pending;
+        saleState = SaleState.Open;
         salePrice = _salePrice;
         preSalePrice = _preSalePrice;
-
-        reservedSupply = 0;
-    }
-
-    function setFactoryAddress(address _factoryAddress) external onlyOwner {
-        factoryAddress = _factoryAddress;
     }
 
     function baseTokenURI() public view override returns (string memory) {
@@ -164,7 +144,7 @@ contract Cryptopi is ERC721Tradable {
     }
 
     function _checkAndCloseSale() internal {
-        if (this.totalSupply() == maxSupply.sub(maxReservedSupply)) {
+        if (this.totalSupply() == maxSupply) {
             saleState = SaleState.Closed;
         }
     }
@@ -245,42 +225,17 @@ contract Cryptopi is ERC721Tradable {
     }
 
     /** 
-    @dev Validates factory address caller and sale state before minting
-    */
-    function _canMintFactory() internal view {
-        require(factoryAddress != address(0), 'Factory address not set');
-        require(msg.sender == factoryAddress, 'Only factory contract can call');
-        require(saleState == SaleState.Open, 'Sale is not open');
-    }
-
-    /** 
-    @dev Mint a single token.
-    Available to the Factory contract only
-    */
-    function mintFromFactory(address _to) external {
-        // Validation before minting
-        _canMintFactory();
-
-        mintTo(_to);
-
-        // Check for maxSupply - maxReservedSupply reach and close the sale if so
-        _checkAndCloseSale();
-    }
-
-    /** 
     @dev Reserves the maxReservedSupply
     */
-    function reserveTokens() external onlyOwner {
+    function mintFromOwner(uint8 quantity) external onlyOwner {
         require(
-            reservedSupply < maxReservedSupply,
-            'Max reserve tokens reached'
+            totalSupply() + quantity < maxSupply,
+            'Cannot mint more than maxSupply'
         );
 
-        for (uint256 i = 0; i < maxReservedSupply; i++) {
+        for (uint256 i = 0; i < quantity; i++) {
             mintTo(msg.sender);
         }
-
-        reservedSupply = maxReservedSupply;
     }
 
     function withdraw() public onlyOwner {
